@@ -108,11 +108,9 @@
   <!-- required since Android 13 / targetSdkVersion 33+ for posting notifications -->
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
-  <!-- legacy Bluetooth permission, required on older Android versions -->
-  <uses-permission android:name="android.permission.BLUETOOTH"
-                   android:maxSdkVersion="30"/>
-  <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
-                   android:maxSdkVersion="30"/>
+  <!-- legacy Bluetooth permission, required on older Android versions / patched for MIUI system -->
+  <uses-permission android:name="android.permission.BLUETOOTH"/>
+  <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
 
   <!-- required since Android 9 / targetSdkVersion 28 -->
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
