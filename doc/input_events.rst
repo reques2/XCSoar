@@ -39,7 +39,7 @@ bindings. It is compiled into XCSoar and also serves as a template
 for custom files.
 
 To use a custom file, go to
-**Menu > Config > System > Look > Language, Input > Events**, select
+**Menu > Config > System > Setup > Language, Input > Events**, select
 your ``.xci`` file, and restart XCSoar.
 
 Custom files are loaded **on top of** the built-in defaults: key and
@@ -273,6 +273,10 @@ Event list
    - Controls waypoint advance trigger arming. Possible arguments:
      ``on`` (arm), ``off`` (disarm), ``toggle``, ``show``
      (display current state).
+ * - ``ArrangeInfoBoxes``
+   - Opens the InfoBox arrange mode, which edits the InfoBox set of
+     the page currently shown: an InfoBox can be dragged to another
+     slot or moved there with the cursor keys.
  * - ``AudioDeadband``
    - Adjusts the audio deadband of internal vario sounds. Possible
      arguments: ``+`` (increase deadband), ``-`` (decrease

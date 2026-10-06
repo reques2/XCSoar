@@ -419,6 +419,21 @@ public:
   void Close() noexcept;
 
   /**
+   * Close the port although this object is borrowed, because the
+   * borrower needs the hardware to be reachable by somebody else
+   * (e.g. the FLARM Hub REST API, which cannot obtain its own
+   * connection to the FLARM while we occupy the NMEA port).  The
+   * device stays borrowed and must still be returned.
+   */
+  void CloseBorrowed() noexcept;
+
+  /**
+   * Schedule reopening the port closed by CloseBorrowed().  The port
+   * is opened only after the device has been returned.
+   */
+  void ScheduleReopenBorrowed() noexcept;
+
+  /**
    * @param env a persistent object
    */
   void Reopen(OperationEnvironment &env);
@@ -661,6 +676,7 @@ private:
                        AtmosphericPressure pressure) noexcept override;
   void OnVarioSensor(float vario) noexcept override;
   void OnHeartRateSensor(unsigned bpm) noexcept override;
+  void OnBloodOxygenSensor(unsigned spo2) noexcept override;
   void OnEngineSensors(bool has_cht,
                        Temperature cht,
                        bool has_egt,

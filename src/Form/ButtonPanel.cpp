@@ -221,7 +221,7 @@ ButtonPanel::BottomLayout(PixelRect rc) noexcept
     }
   };
 
-  StaticArray<Row, 8u> rows;
+  StaticArray<Row, ButtonPanel::MAX_BUTTONS> rows;
 
   for (unsigned i = 0; i < n_buttons;) {
     unsigned end = FitButtonRow(i, total_width);
@@ -339,6 +339,13 @@ ButtonPanel::HideAll() noexcept
 {
   for (auto i : buttons)
     i->Hide();
+}
+
+void
+ButtonPanel::Raise() noexcept
+{
+  for (auto i : buttons)
+    i->BringToTop();
 }
 
 bool

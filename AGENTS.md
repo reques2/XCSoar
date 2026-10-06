@@ -37,7 +37,7 @@ User-facing behaviour: update `doc/manual/en/` (not `doc/*.rst`) and
 - UI must work on OpenGL and memory canvas (Kobo). Scale with
   `Layout::`. Use `IsDithered()` / `HasColors()` for e-paper. Colour and
   in-flight HF: `doc/architecture.rst` User interface guidelines (NASA,
-  FAA EFB).
+  FAA EFB). Which rectangle to use: **Screen rectangles** in that file.
 - Layers: Foundation (`util/`, `Math/`, `Geo/`) → Engine → Backend
   (`Computer/`, `Device/`, `Blackboard/`) → UI. Device drivers and
   calculation must not include UI headers or call `CommonInterface`.
@@ -71,6 +71,7 @@ Details: `.cursor/rules/xcsoar-testing.mdc`.
 | C++ (`noexcept`, nullptr, enums) | `.cursor/rules/cpp-safety-patterns.mdc` |
 | NMEA, devices, Validity / time | `.cursor/rules/nmea-validity-patterns.mdc` |
 | Search / stacked dialogs | `.cursor/rules/search-dialog-ux.mdc` |
+| Touch / lift-off / hold | `.cursor/rules/ui-touch.mdc`, `doc/architecture.rst` (Touch interaction) |
 | Waypoint types / CUP round-trip | `.cursor/rules/waypoint-types.mdc` |
 | SVG icons (`Data/icons/`) | `.cursor/rules/svg-icons.mdc` |
 | `NEWS.txt` | `.cursor/rules/news.txt.mdc` |
@@ -82,6 +83,8 @@ Details: `.cursor/rules/xcsoar-testing.mdc`.
 | Code review (readable, cost, layers) | `.cursor/rules/review-human-readable.mdc`, `.cursor/rules/review-exponential.mdc`, `.cursor/rules/review-architecture.mdc` |
 | Layers, threads, blackboards, HTTP | `doc/architecture.rst` |
 | UI colour, EFB / NASA HF | `doc/architecture.rst` (User interface guidelines) |
+| Screen rectangles (client, safe area, HUD, shade) | `doc/architecture.rst` (Screen rectangles) |
+| Touch / lift-off / hold | `.cursor/rules/ui-touch.mdc` |
 | Other developer docs | `.cursor/rules/developer-docs.mdc` |
 | User manual (pilots) | `.cursor/rules/user-manual.mdc` |
 | gettext / `po/` | `.cursor/rules/translations.mdc` |

@@ -5,6 +5,7 @@
 #include "Interface.hpp"
 #include "Asset.hpp"
 #include "Audio/Sound.hpp"
+#include "Form/Button.hpp"
 #include "Dialogs/Airspace/AirspaceWarningDialog.hpp"
 #include "ui/event/Idle.hpp"
 #include "Look/Colors.hpp"
@@ -13,7 +14,6 @@
 #include "Screen/Layout.hpp"
 #include "ui/canvas/AnyCanvas.hpp"
 #include "ui/canvas/Font.hpp"
-#include "PageActions.hpp"
 #include "Widget/QuestionWidget.hpp"
 #include "Language/Language.hpp"
 #include "Engine/Airspace/AirspaceWarning.hpp"
@@ -176,7 +176,7 @@ public:
       }
 
       monitor.Schedule();
-      PageActions::RestoreBottom();
+      CommonInterface::main_window->SetBottomBannerWidget(nullptr);
     });
 
     AddButton(_("Ack Day"), [this](){
@@ -190,7 +190,7 @@ public:
       }
 
       monitor.Schedule();
-      PageActions::RestoreBottom();
+      CommonInterface::main_window->SetBottomBannerWidget(nullptr);
     });
 
     AddButton(_("More"), [this](){
@@ -299,7 +299,7 @@ AirspaceWarningMonitor::HideWidget() noexcept
   if (widget == nullptr)
     return;
 
-  PageActions::RestoreBottom();
+  CommonInterface::main_window->SetBottomBannerWidget(nullptr);
 }
 
 void
@@ -330,6 +330,10 @@ AirspaceWarningMonitor::Check() noexcept
     // un-blank the display, play a sound
     ResetUserIdle();
     PlayResource("IDR_WAV_BEEPBWEEP");
+#ifdef HAVE_VIBRATOR
+    PlayHapticFeedback(HapticFeedbackType::ALARM);
+#endif
+
     if (CommonInterface::GetUISettings().enable_airspace_warning_dialog) {
       sound_interval_counter = 0;
       sound_timer.Schedule(std::chrono::milliseconds(500));
@@ -362,12 +366,16 @@ AirspaceWarningMonitor::Check() noexcept
                                        w->GetAirspacePtr(),
                                        w->GetWarningState(),
                                        w->GetSolution());
-    PageActions::SetCustomBottom(widget);
+    CommonInterface::main_window->SetBottomBannerWidget(widget);
   }
 
   // un-blank the display, play a sound
   ResetUserIdle();
   PlayResource("IDR_WAV_BEEPBWEEP");
+#ifdef HAVE_VIBRATOR
+  PlayHapticFeedback(HapticFeedbackType::ALARM);
+#endif
+
   if (CommonInterface::GetUISettings().enable_airspace_warning_dialog) {
     sound_interval_counter = 0;
     sound_timer.Schedule(std::chrono::milliseconds(500));

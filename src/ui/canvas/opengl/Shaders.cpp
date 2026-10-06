@@ -21,8 +21,9 @@ GLint texture_projection, texture_texture, texture_translate;
 GLProgram *invert_shader;
 GLint invert_projection, invert_texture, invert_translate;
 
-GLProgram *alpha_shader;
-GLint alpha_projection, alpha_texture, alpha_translate;
+GLProgram *alpha_fix_color_shader = nullptr;
+GLint alpha_fix_color_projection = 0, alpha_fix_color_texture = 0,
+  alpha_fix_color_translate = 0, alpha_fix_color_color = 0;
 
 GLProgram *combine_texture_shader;
 GLint combine_texture_projection, combine_texture_texture,
@@ -41,6 +42,10 @@ GLProgram *filled_circle_shader;
 GLint filled_circle_projection, filled_circle_translate,
   filled_circle_center, filled_circle_radius1, filled_circle_radius2,
   filled_circle_color1, filled_circle_color2;
+
+GLProgram *round_line_shader;
+GLint round_line_projection, round_line_translate,
+  round_line_softness, round_line_min_coverage, round_line_color;
 
 } // namespace OpenGL
 
@@ -112,21 +117,45 @@ static constexpr char invert_fragment_shader[] =
     uniform sampler2D texture;
     varying vec2 texcoordvar;
     void main() {
-      vec4 color = texture2D(texture, texcoordvar);
-      gl_FragColor = vec4(vec3(1) - color.rgb, color.a);
+      vec4 texture_sample;
+      vec4 color;
+      vec4 alpha;
+      texture_sample = texture2D(texture, texcoordvar);
+      alpha = vec4(vec3(0),texture_sample.a);
+      color = vec4(vec3(1) - texture_sample.rgb, 0);
+      /* Workaround for the LIMA GPU driver for OpenVario:
+       * Assigning the alpha component directly leads to
+       * render errors in blending mode
+       * Full-vector additions or multiplications however work.
+       */
+      gl_FragColor = color + alpha;
     }
 )glsl";
 
-static const char *const alpha_vertex_shader = texture_vertex_shader;
-static constexpr char alpha_fragment_shader[] =
+static constexpr char alpha_fix_color_vertex_shader[] =
+  GLSL_VERSION
+  R"glsl(
+    uniform mat4 projection;
+    uniform vec2 translate;
+    attribute vec4 position;
+    attribute vec2 texcoord;
+    varying vec2 texcoordvar;
+    void main() {
+      gl_Position = position;
+      gl_Position.xy += translate;
+      gl_Position = projection * gl_Position;
+      texcoordvar = texcoord;
+    }
+)glsl";
+static constexpr char alpha_fix_color_fragment_shader[] =
   GLSL_VERSION
   GLSL_PRECISION
   R"glsl(
     uniform sampler2D texture;
-    varying vec4 colorvar;
     varying vec2 texcoordvar;
+    uniform vec4 color;
     void main() {
-      gl_FragColor = vec4(colorvar.rgb, texture2D(texture, texcoordvar).a);
+      gl_FragColor = vec4(color.rgb, texture2D(texture, texcoordvar).a);
     }
 )glsl";
 
@@ -240,6 +269,58 @@ static constexpr char filled_circle_fragment_shader[] =
     }
 )glsl";
 
+static constexpr char round_line_vertex_shader[] =
+  GLSL_VERSION
+  GLSL_PRECISION
+  R"glsl(
+    uniform mat4 projection;
+    uniform vec2 translate;
+    attribute vec4 position;
+    attribute vec4 texcoord;
+    attribute float radius;
+    varying highp vec2 vert_pos;
+    varying highp vec4 segment;
+    varying highp float radiusvar;
+    void main() {
+      vert_pos = position.xy;
+      segment = texcoord;
+      radiusvar = radius;
+      gl_Position = position;
+      gl_Position.xy += translate;
+      gl_Position = projection * gl_Position;
+    }
+)glsl";
+
+static constexpr char round_line_fragment_shader[] =
+  GLSL_VERSION
+  GLSL_PRECISION
+  R"glsl(
+    uniform float softness;
+    uniform float min_coverage;
+    uniform vec4 color;
+    varying highp vec2 vert_pos;
+    varying highp vec4 segment;
+    varying highp float radiusvar;
+    void main() {
+      highp vec2 a = segment.xy;
+      highp vec2 ab = segment.zw - a;
+      highp float length2 = dot(ab, ab);
+      highp float t = length2 > 0.0
+        ? clamp(dot(vert_pos - a, ab) / length2, 0.0, 1.0)
+        : 0.0;
+      highp float d = distance(vert_pos, a + t * ab);
+
+      /* how much of the pixel is inside, faded over the soft edge;
+         the S curve makes a wide soft edge look like a gradient
+         instead of a flat band */
+      float coverage = smoothstep(0.0, 1.0,
+                                  (radiusvar - d) / softness + 0.5);
+      if (coverage <= 0.0 || coverage < min_coverage) discard;
+
+      gl_FragColor = vec4(color.rgb, color.a * coverage);
+    }
+)glsl";
+
 static void
 CompileAttachShader(GLProgram &program, GLenum type, const char *code)
 {
@@ -319,18 +400,19 @@ OpenGL::InitShaders()
   invert_shader->Use();
   glUniform1i(invert_texture, 0);
 
-  alpha_shader = CompileProgram(alpha_vertex_shader, alpha_fragment_shader);
-  alpha_shader->BindAttribLocation(Attribute::POSITION, "position");
-  alpha_shader->BindAttribLocation(Attribute::TEXCOORD, "texcoord");
-  alpha_shader->BindAttribLocation(Attribute::COLOR, "color");
-  LinkProgram(*alpha_shader);
+  alpha_fix_color_shader = CompileProgram(alpha_fix_color_vertex_shader,
+    alpha_fix_color_fragment_shader);
+  alpha_fix_color_shader->BindAttribLocation(Attribute::POSITION, "position");
+  alpha_fix_color_shader->BindAttribLocation(Attribute::TEXCOORD, "texcoord");
+  LinkProgram(*alpha_fix_color_shader);
 
-  alpha_projection = alpha_shader->GetUniformLocation("projection");
-  alpha_texture = alpha_shader->GetUniformLocation("texture");
-  alpha_translate = alpha_shader->GetUniformLocation("translate");
+  alpha_fix_color_projection = alpha_fix_color_shader->GetUniformLocation("projection");
+  alpha_fix_color_texture = alpha_fix_color_shader->GetUniformLocation("texture");
+  alpha_fix_color_translate = alpha_fix_color_shader->GetUniformLocation("translate");
+  alpha_fix_color_color = alpha_fix_color_shader->GetUniformLocation("color");
 
-  alpha_shader->Use();
-  glUniform1i(alpha_texture, 0);
+  alpha_fix_color_shader->Use();
+  glUniform1i(alpha_fix_color_texture, 0);
 
   combine_texture_shader = CompileProgram(combine_texture_vertex_shader,
                                           combine_texture_fragment_shader);
@@ -383,11 +465,27 @@ OpenGL::InitShaders()
   filled_circle_radius2 = filled_circle_shader->GetUniformLocation("radius2");
   filled_circle_color1 = filled_circle_shader->GetUniformLocation("color1");
   filled_circle_color2 = filled_circle_shader->GetUniformLocation("color2");
+
+  round_line_shader = CompileProgram(round_line_vertex_shader,
+                                     round_line_fragment_shader);
+  round_line_shader->BindAttribLocation(Attribute::POSITION, "position");
+  round_line_shader->BindAttribLocation(Attribute::TEXCOORD, "texcoord");
+  round_line_shader->BindAttribLocation(Attribute::RADIUS, "radius");
+  LinkProgram(*round_line_shader);
+
+  round_line_projection = round_line_shader->GetUniformLocation("projection");
+  round_line_translate = round_line_shader->GetUniformLocation("translate");
+  round_line_softness = round_line_shader->GetUniformLocation("softness");
+  round_line_min_coverage =
+    round_line_shader->GetUniformLocation("min_coverage");
+  round_line_color = round_line_shader->GetUniformLocation("color");
 }
 
 void
 OpenGL::DeinitShaders() noexcept
 {
+  delete round_line_shader;
+  round_line_shader = nullptr;
   delete filled_circle_shader;
   filled_circle_shader = nullptr;
   delete circle_outline_shader;
@@ -396,8 +494,8 @@ OpenGL::DeinitShaders() noexcept
   dashed_shader = nullptr;
   delete combine_texture_shader;
   combine_texture_shader = nullptr;
-  delete alpha_shader;
-  alpha_shader = nullptr;
+  delete alpha_fix_color_shader;
+  alpha_fix_color_shader = nullptr;
   delete invert_shader;
   invert_shader = nullptr;
   delete texture_shader;
@@ -409,8 +507,8 @@ OpenGL::DeinitShaders() noexcept
 void
 OpenGL::UpdateShaderProjectionMatrix() noexcept
 {
-  alpha_shader->Use();
-  glUniformMatrix4fv(alpha_projection, 1, GL_FALSE,
+  alpha_fix_color_shader->Use();
+  glUniformMatrix4fv(alpha_fix_color_projection, 1, GL_FALSE,
                      glm::value_ptr(projection_matrix));
 
   invert_shader->Use();
@@ -441,6 +539,10 @@ OpenGL::UpdateShaderProjectionMatrix() noexcept
   filled_circle_shader->Use();
   glUniformMatrix4fv(filled_circle_projection, 1, GL_FALSE,
                      glm::value_ptr(projection_matrix));
+
+  round_line_shader->Use();
+  glUniformMatrix4fv(round_line_projection, 1, GL_FALSE,
+                     glm::value_ptr(projection_matrix));
 }
 
 void
@@ -457,8 +559,8 @@ OpenGL::UpdateShaderTranslate() noexcept
   invert_shader->Use();
   glUniform2f(invert_translate, t.x, t.y);
 
-  alpha_shader->Use();
-  glUniform2f(alpha_translate, t.x, t.y);
+  alpha_fix_color_shader->Use();
+  glUniform2f(alpha_fix_color_translate, t.x, t.y);
 
   combine_texture_shader->Use();
   glUniform2f(combine_texture_translate, t.x, t.y);
@@ -471,4 +573,7 @@ OpenGL::UpdateShaderTranslate() noexcept
 
   filled_circle_shader->Use();
   glUniform2f(filled_circle_translate, t.x, t.y);
+
+  round_line_shader->Use();
+  glUniform2f(round_line_translate, t.x, t.y);
 }

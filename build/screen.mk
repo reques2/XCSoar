@@ -38,6 +38,7 @@ SCREEN_CUSTOM_SOURCES = \
 	$(WINDOW_SRC_DIR)/custom/DoubleClick.cpp \
 	$(CANVAS_SRC_DIR)/FontSearch.cpp \
 	$(CANVAS_SRC_DIR)/custom/GeoBitmap.cpp \
+	$(CANVAS_SRC_DIR)/custom/GeoBitmapTile.cpp \
 	$(CANVAS_SRC_DIR)/custom/Pen.cpp \
 	$(CONTROL_SRC_DIR)/custom/LargeTextWindow.cpp \
 	$(CONTROL_SRC_DIR)/RichTextWindow.cpp \
@@ -148,6 +149,7 @@ SCREEN_SOURCES += \
 	$(CANVAS_SRC_DIR)/opengl/Texture.cpp \
 	$(CANVAS_SRC_DIR)/opengl/UncompressedImage.cpp \
 	$(CANVAS_SRC_DIR)/opengl/Buffer.cpp \
+	$(CANVAS_SRC_DIR)/opengl/RoundLines.cpp \
 	$(CANVAS_SRC_DIR)/opengl/Shaders.cpp \
 	$(CANVAS_SRC_DIR)/opengl/CanvasRotateShift.cpp \
 	$(CANVAS_SRC_DIR)/opengl/Triangulate.cpp

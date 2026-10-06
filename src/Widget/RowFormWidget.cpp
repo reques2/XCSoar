@@ -229,6 +229,12 @@ RowFormWidget::SetRowAvailable(unsigned i, bool available) noexcept
 
   row.available = available;
   UpdateLayout();
+
+  /* The scroll panel sized this form while the row was hidden.
+     Ask it to measure again, or the new rows stay inside the old
+     short rectangle. */
+  if (ContainerWindow *parent = GetWindow().GetParent())
+    parent->OnChildContentHeightChanged();
 }
 
 void
@@ -489,7 +495,7 @@ RowFormWidget::Initialise(ContainerWindow &parent,
   style.Hide();
   style.ControlParent();
 
-  SetWindow(std::make_unique<PanelControl>(parent, look, rc, style));
+  SetWindow(std::make_unique<PanelControl>(parent, rc, style));
 }
 
 void

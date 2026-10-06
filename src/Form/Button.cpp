@@ -5,6 +5,7 @@
 #include "Form/ButtonPanel.hpp"
 #include "LogFile.hpp"
 #include "ui/event/KeyCode.hpp"
+#include "ui/window/ContainerWindow.hpp"
 #include "Asset.hpp"
 #include "Renderer/TextButtonRenderer.hpp"
 #include "Renderer/SymbolButtonRenderer.hpp"
@@ -35,6 +36,18 @@ Button::Button(ContainerWindow &parent, const ButtonLook &look,
 Button::Button() = default;
 
 Button::~Button() noexcept = default;
+
+void
+PlayHapticFeedback([[maybe_unused]] HapticFeedbackType type) noexcept
+{
+#ifdef HAVE_VIBRATOR
+  const UISettings &ui_settings = CommonInterface::GetUISettings();
+  if (ui_settings.haptic_feedback == UISettings::HapticFeedback::ON ||
+      (ui_settings.haptic_feedback == UISettings::HapticFeedback::DEFAULT &&
+       GlobalSettings::haptic_feedback))
+    Vibrate(type);
+#endif
+}
 
 void
 Button::Create(ContainerWindow &parent,
@@ -139,13 +152,8 @@ Button::SetDown(bool _down)
   if (_down == down)
     return;
 
-#ifdef HAVE_VIBRATOR
-  const UISettings &ui_settings = CommonInterface::GetUISettings();
-  if (ui_settings.haptic_feedback == UISettings::HapticFeedback::ON ||
-      (ui_settings.haptic_feedback == UISettings::HapticFeedback::DEFAULT &&
-       GlobalSettings::haptic_feedback))
-    VibrateShort();
-#endif
+  if (_down)
+    PlayHapticFeedback();
 
   down = _down;
   Invalidate();
@@ -195,9 +203,23 @@ Button::OnKeyDown(unsigned key_code) noexcept
     Click();
     return true;
 
-  default:
-    return PaintWindow::OnKeyDown(key_code);
+  case KEY_UP:
+    /* OnKeyCheck leaves Up/Down unclaimed so a modal form walks
+       the whole dialog: Up from Select Waypoint's Details returns
+       to the filter instead of wrapping inside Details/Close.
+       This path is for a button outside a form, such as the map
+       arrange overlay. */
+    if (auto *parent = GetParent())
+      return parent->FocusPreviousControl();
+    break;
+
+  case KEY_DOWN:
+    if (auto *parent = GetParent())
+      return parent->FocusNextControl();
+    break;
   }
+
+  return PaintWindow::OnKeyDown(key_code);
 }
 
 bool

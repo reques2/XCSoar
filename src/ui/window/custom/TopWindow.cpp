@@ -246,6 +246,8 @@ TopWindow::DrawRedrawCounter(Canvas &canvas) noexcept
 
 #endif
 
+/** \brief Draw the entire scene onto the screen canvas.
+ */
 void
 TopWindow::Expose() noexcept
 {
@@ -259,6 +261,19 @@ TopWindow::Expose() noexcept
 #endif
 
   if (auto canvas = screen->Lock(); canvas.IsDefined()) {
+#if defined(ANDROID) || (defined(__APPLE__) && TARGET_OS_IPHONE)
+    /* On a device with a display cutout or system bars, XCSoar does
+       not necessarily paint every pixel: the user interface may be
+       restricted to the safe area.  Clear the canvas first, or the
+       remaining areas would keep showing stale frame buffer
+       contents. */
+    if (const PixelRect safe_rc = GetSafeAreaRect(),
+          full_rc = PixelRect{canvas.GetSize()};
+        safe_rc.left > full_rc.left || safe_rc.top > full_rc.top ||
+        safe_rc.right < full_rc.right || safe_rc.bottom < full_rc.bottom)
+      canvas.Clear(COLOR_BLACK);
+#endif
+
     OnPaint(canvas);
 
 #ifdef DRAW_MOUSE_CURSOR
@@ -301,6 +316,14 @@ TopWindow::Refresh() noexcept
     /* the application is paused/suspended, and we don't have an
        OpenGL surface - ignore all drawing requests */
     return;
+	
+#ifdef MESA_KMS
+  if (!screen->CheckAndFinishPendingFlip()) {
+    /* A buffer flip is ongoing. Refrain from rendering now.*/
+    return;
+  }
+#endif
+
 
 #if defined(USE_X11) || defined(USE_WAYLAND)
   if (!IsVisible())
